@@ -1,5 +1,11 @@
-use std::arch::asm;
-use std::fmt;
+use std::{
+    arch::asm,
+    fmt,
+    thread,
+    time,
+};
+
+const PAGE_SIZE: usize = 0x1000;
 
 #[derive(Debug)]
 struct StackFrame {
@@ -34,12 +40,14 @@ impl fmt::Display for StackFrame {
 
 fn main() {
     let st = get_stacktrace();
+    let load_addr = get_loadaddr();
 
     for frame in st {
         println!("{}", frame);
     }
 
-    print!("debug");
+    println!("load addr: {:#x}", load_addr);
+    sleep(1000);
 }
 
 fn get_stacktrace() -> Vec<StackFrame>{
@@ -84,4 +92,24 @@ fn get_ip() -> usize {
 
     unsafe { asm!("lea   {}, [rip]", out(reg) ip); }
     ip
+}
+
+fn get_loadaddr() -> usize {
+    let ip = get_ip() & !(PAGE_SIZE -1);
+    let mut p = ip as *const u32;
+    let magic = 0x464c457f;         // ELF Magic bytes in little endian
+
+    loop {
+        unsafe {
+            if *p == magic {
+                return p as usize;
+            }
+        }
+        p = (p as usize - PAGE_SIZE) as *const u32;
+    }
+}
+
+fn sleep(secs: u64) {
+    let dur = time::Duration::from_secs(secs);
+    thread::sleep(dur);
 }
