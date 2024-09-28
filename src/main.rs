@@ -5,6 +5,8 @@ use std::{
     time,
 };
 
+mod elf;
+
 const PAGE_SIZE: usize = 0x1000;
 
 #[derive(Debug)]
@@ -46,7 +48,7 @@ fn main() {
         println!("{}", frame);
     }
 
-    println!("load addr: {:#x}", load_addr);
+    println!("load addr: {:?}", load_addr);
     //sleep(1000);
 }
 
@@ -98,19 +100,18 @@ fn get_ip() -> usize {
     ip
 }
 
-fn get_loadaddr() -> usize {
+fn get_loadaddr() -> *mut usize {
     let ip = get_ip() & !(PAGE_SIZE -1);
     let mut p = ip as *const u32;
     let magic = 0x464c457f;         // ELF Magic bytes, little endian
 
-    loop {
-        unsafe {
-            if *p == magic {
-                return p as usize;
-            }
+    unsafe {
+        while *p != magic {
+            p = (p as usize - PAGE_SIZE) as *const u32;
         }
-        p = (p as usize - PAGE_SIZE) as *const u32;
     }
+
+    p as *mut usize
 }
 
 fn sleep(secs: u64) {
