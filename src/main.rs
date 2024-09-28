@@ -47,7 +47,7 @@ fn main() {
     }
 
     println!("load addr: {:#x}", load_addr);
-    sleep(1000);
+    //sleep(1000);
 }
 
 fn get_stacktrace() -> Vec<StackFrame>{
@@ -56,9 +56,13 @@ fn get_stacktrace() -> Vec<StackFrame>{
     let mut ip = get_ip();
     let mut stacktrace: Vec<StackFrame> = Vec::new();
 
-    while bp != 0 {
+    loop {
         let frame = StackFrame::new(sp, bp, ip);
         stacktrace.push(frame);
+
+        if bp == 0 {
+            break;
+        }
 
         unsafe {
             ip = *((bp + 8) as *const usize);
@@ -97,7 +101,7 @@ fn get_ip() -> usize {
 fn get_loadaddr() -> usize {
     let ip = get_ip() & !(PAGE_SIZE -1);
     let mut p = ip as *const u32;
-    let magic = 0x464c457f;         // ELF Magic bytes in little endian
+    let magic = 0x464c457f;         // ELF Magic bytes, little endian
 
     loop {
         unsafe {
