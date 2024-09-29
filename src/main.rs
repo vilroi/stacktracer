@@ -25,7 +25,7 @@ impl StackFrame {
             sp,
             bp,
             ip,
-            func: String::new(),
+            func: String::from("Unknown"),
         }
     }
 
@@ -77,8 +77,10 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
     let load_address = get_loadaddr();
     let elf = elf::Elf::open("/proc/self/exe")?;
 
+    let functions: Vec<&Symbol> = elf.get_symbols_by_type(SymbolType::Function).collect();
+
     for frame in &mut stacktrace {
-        for func in elf.get_symbols_by_type(SymbolType::Function) { // TODO: inefficient
+        for func in &functions {
             let value = frame.ip - load_address as usize;
             if func.within_range(value) {
                 frame.func = func.name.clone();
@@ -113,16 +115,21 @@ fn get_ip() -> usize {
     ip
 }
 
-fn get_loadaddr() -> *mut usize {
-    let ip = get_ip() & !(PAGE_SIZE -1);
-    let mut p = ip as *const u32;
-    let magic = 0x464c457f;         // ELF Magic bytes, little endian
+
+fn get_loadaddr() -> usize {
+    let mut addr = page_align(get_ip()) as *const u32;
+    let magic  = 0x464c457f;         // ELF Magic bytes, little endian
 
     unsafe {
-        while *p != magic {
-            p = (p as usize - PAGE_SIZE) as *const u32;
+        while *addr != magic {
+            addr = addr.sub(PAGE_SIZE);
         }
     }
 
-    p as *mut usize
+    addr as usize
+}
+
+#[inline(always)]
+fn page_align(addr: usize) -> usize {
+    addr & !(PAGE_SIZE - 1)
 }
