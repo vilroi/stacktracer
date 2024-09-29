@@ -1,8 +1,6 @@
 use std::{
     arch::asm,
     fmt,
-    thread,
-    time,
     io,
 };
 
@@ -127,9 +125,4 @@ fn get_loadaddr() -> *mut usize {
     }
 
     p as *mut usize
-}
-
-fn sleep(secs: u64) {
-    let dur = time::Duration::from_secs(secs);
-    thread::sleep(dur);
 }
