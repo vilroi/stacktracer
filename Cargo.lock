@@ -3,5 +3,13 @@
 version = 3
 
 [[package]]
+name = "frieren"
+version = "0.1.0"
+source = "git+https://github.com/vilroi/frieren#235b954a6c781564c3e1eba66db039f578b64de5"
+
+[[package]]
 name = "stack_tracer"
 version = "0.1.0"
+dependencies = [
+ "frieren",
+]

@@ -3,9 +3,13 @@ use std::{
     fmt,
     thread,
     time,
+    io,
 };
 
-mod elf;
+use frieren::{
+    elf,
+    symbols::*,
+};
 
 const PAGE_SIZE: usize = 0x1000;
 
@@ -14,7 +18,7 @@ struct StackFrame {
     sp: usize,
     bp: usize,
     ip: usize,
-    //func: String
+    func: String
 }
 
 impl StackFrame {
@@ -22,7 +26,8 @@ impl StackFrame {
         StackFrame {
             sp,
             bp,
-            ip
+            ip,
+            func: String::new(),
         }
     }
 
@@ -35,24 +40,22 @@ impl fmt::Display for StackFrame {
                 \tsp: {:#x},\n\
                 \tbp: {:#x},\n\
                 \tip: {:#x},\n\
+                \tfunction: {},\n\
             }}",
-            self.sp, self.bp, self.ip)
+            self.sp, self.bp, self.ip, self.func)
     }
 }
 
-fn main() {
-    let st = get_stacktrace();
-    let load_addr = get_loadaddr();
+fn main() -> io::Result<()> {
+    let st = get_stacktrace()?;
 
     for frame in st {
         println!("{}", frame);
     }
-
-    println!("load addr: {:?}", load_addr);
-    //sleep(1000);
+    Ok(())
 }
 
-fn get_stacktrace() -> Vec<StackFrame>{
+fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
     let mut sp = get_sp();
     let mut bp = get_bp();
     let mut ip = get_ip();
@@ -73,7 +76,19 @@ fn get_stacktrace() -> Vec<StackFrame>{
         };
     }
 
-    stacktrace
+    let load_address = get_loadaddr();
+    let elf = elf::Elf::open("/proc/self/exe")?;
+
+    for frame in &mut stacktrace {
+        for func in elf.get_symbols_by_type(SymbolType::Function) { // TODO: inefficient
+            let value = frame.ip - load_address as usize;
+            if func.within_range(value) {
+                frame.func = func.name.clone();
+            }
+        }
+    }
+
+    Ok(stacktrace)
 }
 
 #[inline(always)]
