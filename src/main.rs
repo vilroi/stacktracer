@@ -62,17 +62,21 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
     let mut stacktrace: Vec<StackFrame> = Vec::new();
 
     loop {
-        let frame = StackFrame::new(sp, bp, ip);
+        let frame = StackFrame::new(
+            sp as usize, 
+            bp as usize, 
+            ip as usize);
+
         stacktrace.push(frame);
 
-        if bp == 0 {
+        if bp.is_null() {
             break;
         }
 
         unsafe {
-            ip = *((bp + 8) as *const usize);
-            sp = bp + 16;
-            bp = *(bp as *const usize);
+            ip = *(bp.add(1)) as *const usize;
+            sp = bp.add(2);
+            bp = *bp as *const usize;
         };
     }
 
@@ -94,24 +98,24 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
 }
 
 #[inline(always)]
-fn get_sp() -> usize {
-    let sp: usize;
+fn get_sp() -> *const usize {
+    let sp: *const usize;
 
     unsafe { asm!("mov   {}, rsp", out(reg) sp); }
     sp
 }
 
 #[inline(always)]
-fn get_bp() -> usize {
-    let bp: usize;
+fn get_bp() -> *const usize {
+    let bp: *const usize;
 
     unsafe { asm!("mov   {}, rbp", out(reg) bp); }
     bp
 }
 
 #[inline(always)]
-fn get_ip() -> usize {
-    let ip: usize;
+fn get_ip() -> *const usize {
+    let ip: *const usize;
 
     unsafe { asm!("lea   {}, [rip]", out(reg) ip); }
     ip
@@ -123,7 +127,7 @@ fn page_align(addr: usize) -> usize {
 }
 
 fn get_loadaddr() -> usize {
-    let mut addr = page_align(get_ip()) as *const u32;
+    let mut addr = page_align(get_ip() as usize) as *const u32;
     let magic  = 0x464c457f;         // ELF Magic bytes, little endian
 
     unsafe {
