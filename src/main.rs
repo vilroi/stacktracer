@@ -47,8 +47,6 @@ impl fmt::Display for StackFrame {
 fn main() -> io::Result<()> {
     let st = get_stacktrace()?;
 
-    let addr = get_loadaddr();
-    println!("{:#x}", addr);
     for frame in st {
         println!("{}", frame);
     }
@@ -59,7 +57,7 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
     let mut sp = get_sp();
     let mut bp = get_bp();
     let mut ip = get_ip();
-    let mut stacktrace: Vec<StackFrame> = Vec::new();
+    let mut frames: Vec<StackFrame> = Vec::new();
 
     loop {
         let frame = StackFrame::new(
@@ -67,7 +65,7 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
             bp as usize, 
             ip as usize);
 
-        stacktrace.push(frame);
+        frames.push(frame);
 
         if bp.is_null() {
             break;
@@ -80,21 +78,27 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
         };
     }
 
+    resolve_addresses(&mut frames)?;
+
+    Ok(frames)
+}
+
+fn resolve_addresses(frames: &mut Vec<StackFrame>) -> io::Result<()> {
     let load_address = get_loadaddr();
     let elf = elf::Elf::open("/proc/self/exe")?;
 
     let functions: Vec<&Symbol> = elf.get_symbols_by_type(SymbolType::Function).collect();
 
-    for frame in &mut stacktrace {
+    for frame in frames {
         for func in &functions {
-            let value = frame.ip - load_address as usize;
+            let value = frame.ip - load_address;
             if func.within_range(value) {
                 frame.func = func.name.clone();
             }
         }
     }
 
-    Ok(stacktrace)
+    Ok(())
 }
 
 #[inline(always)]
