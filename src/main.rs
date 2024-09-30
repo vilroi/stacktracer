@@ -47,6 +47,8 @@ impl fmt::Display for StackFrame {
 fn main() -> io::Result<()> {
     let st = get_stacktrace()?;
 
+    let addr = get_loadaddr();
+    println!("{:#x}", addr);
     for frame in st {
         println!("{}", frame);
     }
@@ -115,6 +117,10 @@ fn get_ip() -> usize {
     ip
 }
 
+#[inline(always)]
+fn page_align(addr: usize) -> usize {
+    addr & !(PAGE_SIZE - 1)
+}
 
 fn get_loadaddr() -> usize {
     let mut addr = page_align(get_ip()) as *const u32;
@@ -122,14 +128,10 @@ fn get_loadaddr() -> usize {
 
     unsafe {
         while *addr != magic {
-            addr = addr.sub(PAGE_SIZE);
+            addr = addr.byte_sub(PAGE_SIZE);
         }
     }
 
     addr as usize
 }
 
-#[inline(always)]
-fn page_align(addr: usize) -> usize {
-    addr & !(PAGE_SIZE - 1)
-}
