@@ -105,6 +105,7 @@ fn resolve_addresses(frames: &mut Vec<StackFrame>) -> io::Result<()> {
             let value = frame.ip as usize - load_address;
             if func.within_range(value) {
                 frame.func = func.name.clone();
+                break;
             }
         }
     }
