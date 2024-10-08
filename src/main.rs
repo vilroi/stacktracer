@@ -9,26 +9,42 @@ use frieren::{
     symbols::*,
 };
 
+
 const PAGE_SIZE: usize = 0x1000;
 
 #[derive(Debug)]
 struct StackFrame {
-    sp: usize,
-    bp: usize,
-    ip: usize,
-    func: String
+    sp: *const usize,
+    bp: *const usize,
+    ip: *const usize,
+    func: String,
+    data: Vec<u8>,
 }
 
 impl StackFrame {
-    fn new(sp: usize, bp: usize, ip: usize) -> Self {
+    fn new(sp: *const usize, bp: *const usize, ip: *const usize) -> Self {
+        let mut data: Vec<u8> = Vec::new();
+
+        if !bp.is_null() {
+            let stack_size = bp as usize - sp as usize;
+            let mut p = sp as *const u8;
+
+            for _ in 0..stack_size {
+                unsafe {
+                    data.push(*p);
+                    p = p.add(1);
+                }
+            }
+        }
+
         StackFrame {
             sp,
             bp,
             ip,
             func: String::from("Unknown"),
+            data: Vec::new(),
         }
     }
-
 }
 
 impl fmt::Display for StackFrame {
@@ -40,7 +56,7 @@ impl fmt::Display for StackFrame {
                 \tip: {:#x},\n\
                 \tfunction: {},\n\
             }}",
-            self.sp, self.bp, self.ip, self.func)
+            self.sp as usize, self.bp as usize, self.ip as usize, self.func)
     }
 }
 
@@ -60,11 +76,7 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
     let mut frames: Vec<StackFrame> = Vec::new();
 
     loop {
-        let frame = StackFrame::new(
-            sp as usize, 
-            bp as usize, 
-            ip as usize);
-
+        let frame = StackFrame::new(sp, bp, ip);
         frames.push(frame);
 
         if bp.is_null() {
@@ -86,12 +98,11 @@ fn get_stacktrace() -> io::Result<Vec<StackFrame>> {
 fn resolve_addresses(frames: &mut Vec<StackFrame>) -> io::Result<()> {
     let load_address = get_loadaddr();
     let elf = elf::Elf::open("/proc/self/exe")?;
-
     let functions: Vec<&Symbol> = elf.get_symbols_by_type(SymbolType::Function).collect();
 
     for frame in frames {
         for func in &functions {
-            let value = frame.ip - load_address;
+            let value = frame.ip as usize - load_address;
             if func.within_range(value) {
                 frame.func = func.name.clone();
             }
