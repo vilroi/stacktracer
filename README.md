@@ -4,7 +4,11 @@ This program crawls its own stack frames and dumps information about it.
 
 As the code that performs the stack tracing is not written in a way that allows it to be used by other programs, there isn't much practical utility to it.
 
-This program probably only works on x86_64 linux machines (it may work on the \*BSDs).
+Here are some known limitations:
+
+- This program probably only works on x86_64 linux machines (it may work on the \*BSDs).
+- It is not able to resolve functions that live in dynamically linked libraries (for example, libc)
+- The names are mangled
 
 ```console
 $ cargo run
