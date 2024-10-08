@@ -4,7 +4,7 @@ This program crawls its own stack frames and dumps information about it.
 
 As the code that performs the stack tracing is not written in a way that allows it to be used by other programs, there isn't much practical utility to it.
 
-This program also only works on x86 machines.
+This program probably only works on x86_64 linux machines (it may work on the \*BSDs).
 
 ```console
 $ cargo run
